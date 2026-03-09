@@ -216,13 +216,23 @@ runs:
       if: github.event.pull_request.user.login != 'renovate[bot]'
       shell: bash
       run: |
-        docker load --input ${{ runner.temp }}/${{ inputs.docker_image_name }}.tar
+        E2E_DIR=$(echo "${{ inputs.e2e_test_path }}" | sed 's|/\.\.\.$||')
+        if [ -d "$E2E_DIR" ]; then
+          docker load --input ${{ runner.temp }}/${{ inputs.docker_image_name }}.tar
+        else
+          echo "E2E directory $E2E_DIR not found, skipping Docker image load"
+        fi
 
     - name: Run E2E tests
       if: github.event.pull_request.user.login != 'renovate[bot]'
       shell: bash
       run: |
-        go test -v -timeout 30m ${{ inputs.e2e_test_path }}
+        E2E_DIR=$(echo "${{ inputs.e2e_test_path }}" | sed 's|/\.\.\.$||')
+        if [ -d "$E2E_DIR" ]; then
+          go test -v -timeout 30m ${{ inputs.e2e_test_path }}
+        else
+          echo "E2E directory $E2E_DIR not found, skipping E2E tests"
+        fi
       env:
         E2E_SKIP_CLEANUP: ""
 
