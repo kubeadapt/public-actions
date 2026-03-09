@@ -60,11 +60,12 @@ runs:
         go-version: ${{ inputs.go_version }}
         cache: false
 
-    - name: Configure AWS Credentials
+    - name: Configure AWS Credentials (ECR Public - us-east-1)
+      if: github.ref == 'refs/heads/main'
       uses: aws-actions/configure-aws-credentials@v4
       with:
         role-to-assume: arn:aws:iam::${{ inputs.AWS_ACCOUNT_ID }}:role/${{ inputs.AWS_ROLE_TO_ASSUME }}
-        aws-region: ${{ inputs.AWS_REGION }}
+        aws-region: us-east-1
 
     - name: Login to Amazon ECR Public
       if: github.ref == 'refs/heads/main'
@@ -72,6 +73,13 @@ runs:
       uses: aws-actions/amazon-ecr-login@v2
       with:
         registry-type: public
+
+    - name: Configure AWS Credentials (ECR Private - ${{ inputs.AWS_REGION }})
+      if: github.ref == 'refs/heads/develop'
+      uses: aws-actions/configure-aws-credentials@v4
+      with:
+        role-to-assume: arn:aws:iam::${{ inputs.AWS_ACCOUNT_ID }}:role/${{ inputs.AWS_ROLE_TO_ASSUME }}
+        aws-region: ${{ inputs.AWS_REGION }}
 
     - name: Login to Amazon ECR Private
       if: github.ref == 'refs/heads/develop'
