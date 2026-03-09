@@ -1,0 +1,54 @@
+name: Go Public Service — Test Suite
+
+on:
+  workflow_call:
+    inputs:
+      go_version:
+        description: 'Go version to use'
+        required: false
+        type: string
+        default: '1.26.x'
+      test_path:
+        description: 'Go test path for unit tests'
+        required: false
+        type: string
+        default: './internal/...'
+      e2e_test_path:
+        description: 'Go test path for E2E tests'
+        required: false
+        type: string
+        default: './tests/e2e/...'
+      docker_image_name:
+        description: 'Docker image name for artifact (e.g., my-service)'
+        required: true
+        type: string
+      golangci_lint_timeout:
+        description: 'golangci-lint timeout'
+        required: false
+        type: string
+        default: '5m'
+      benchmark_path:
+        description: 'Path for benchmark tests'
+        required: false
+        type: string
+        default: './internal/...'
+
+jobs:
+  test:
+    name: Full Test Pipeline
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write
+      security-events: write
+    steps:
+      - name: Run full test pipeline
+        uses: kubeadapt/public-actions/.github/actions/golang-public-test@main
+        with:
+          go_version: ${{ inputs.go_version }}
+          test_path: ${{ inputs.test_path }}
+          github_token: ${{ github.token }}
+          golangci_lint_timeout: ${{ inputs.golangci_lint_timeout }}
+          docker_image_name: ${{ inputs.docker_image_name }}
+          e2e_test_path: ${{ inputs.e2e_test_path }}
+          benchmark_path: ${{ inputs.benchmark_path }}

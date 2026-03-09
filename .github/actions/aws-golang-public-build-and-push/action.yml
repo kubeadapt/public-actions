@@ -1,0 +1,123 @@
+name: 'Build and Push Go Application to ECR'
+description: 'Build Go application Docker image with multi-arch support and push to ECR Public (main) or ECR Private (develop)'
+inputs:
+  docker_file_path:
+    description: 'Docker file path'
+    required: false
+    default: 'Dockerfile'
+  go_version:
+    description: 'Go version to use'
+    required: false
+    default: '1.26.x'
+  ecr_repository_name:
+    description: 'The AWS ECR Public repository name (e.g., kubeadapt/app/my-service)'
+    required: true
+  image_tag:
+    description: 'Custom image tag (optional, auto-generated if not provided)'
+    required: false
+  platforms:
+    description: 'Target platforms for multi-arch build (e.g., linux/amd64,linux/arm64)'
+    required: false
+    default: 'linux/amd64,linux/arm64'
+  PLATFORM_ASSISTANT_GH_APP_ID:
+    description: 'Github App ID to be able to access private github repositories'
+    required: true
+  PLATFORM_ASSISTANT_GH_APP_PRIVATE_KEY:
+    description: 'Github App private key to be able to access private github repositories'
+    required: true
+  AWS_REGION:
+    description: 'The AWS region for credentials and private ECR registry'
+    required: true
+  AWS_ACCOUNT_ID:
+    description: 'The AWS account ID'
+    required: true
+  AWS_ROLE_TO_ASSUME:
+    description: 'The AWS IAM role name to assume (e.g. github-actions-my-service)'
+    required: true
+
+outputs:
+  image_tag:
+    description: 'Docker image tag'
+    value: ${{ steps.image_tag.outputs.tag }}
+
+runs:
+  using: "composite"
+  steps:
+    - name: Checkout Source Code
+      uses: actions/checkout@v4
+
+    - name: Generate Github App Token for Private Repositories
+      id: generate_token
+      uses: actions/create-github-app-token@v1
+      with:
+        app-id: ${{ inputs.PLATFORM_ASSISTANT_GH_APP_ID }}
+        private-key: ${{ inputs.PLATFORM_ASSISTANT_GH_APP_PRIVATE_KEY }}
+        owner: ${{ github.repository_owner }}
+
+    - name: Setup Go ${{ inputs.go_version }}
+      uses: actions/setup-go@v5
+      with:
+        go-version: ${{ inputs.go_version }}
+        cache: false
+
+    - name: Configure AWS Credentials
+      uses: aws-actions/configure-aws-credentials@v4
+      with:
+        role-to-assume: arn:aws:iam::${{ inputs.AWS_ACCOUNT_ID }}:role/${{ inputs.AWS_ROLE_TO_ASSUME }}
+        aws-region: ${{ inputs.AWS_REGION }}
+
+    - name: Login to Amazon ECR Public
+      if: github.ref == 'refs/heads/main'
+      id: login-ecr-public
+      uses: aws-actions/amazon-ecr-login@v2
+      with:
+        registry-type: public
+
+    - name: Login to Amazon ECR Private
+      if: github.ref == 'refs/heads/develop'
+      id: login-ecr-private
+      uses: aws-actions/amazon-ecr-login@v2
+      with:
+        registry-type: private
+
+    - name: Generate Image Tag
+      id: image_tag
+      shell: bash
+      run: |
+        if [[ -n "${{ inputs.image_tag }}" ]]; then
+          tag="${{ inputs.image_tag }}"
+        else
+          if [[ "${{ github.ref }}" == "refs/heads/main" ]]; then
+            prefix="trunk"
+          elif [[ "${{ github.ref }}" == "refs/heads/develop" ]]; then
+            prefix="dev"
+          fi
+          tag="${prefix}-${GITHUB_SHA::7}"
+        fi
+        echo tag=$tag >> $GITHUB_OUTPUT
+
+    - name: Set up QEMU for Multi-Arch Build
+      uses: docker/setup-qemu-action@v3
+
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v3
+
+    - name: Build and push Docker image
+      shell: bash
+      run: |
+        if [[ "${{ github.ref }}" == "refs/heads/main" ]]; then
+          IMAGE="public.ecr.aws/${{ inputs.ecr_repository_name }}:${{ steps.image_tag.outputs.tag }}"
+        elif [[ "${{ github.ref }}" == "refs/heads/develop" ]]; then
+          IMAGE="${{ inputs.AWS_ACCOUNT_ID }}.dkr.ecr.${{ inputs.AWS_REGION }}.amazonaws.com/${{ inputs.ecr_repository_name }}-dev:${{ steps.image_tag.outputs.tag }}"
+        else
+          echo "::error::Unsupported branch for image push"
+          exit 1
+        fi
+        echo "Pushing image: ${IMAGE}"
+        docker buildx build \
+          --file ${{ inputs.docker_file_path }} \
+          --platform ${{ inputs.platforms }} \
+          --tag "${IMAGE}" \
+          --provenance=false \
+          --no-cache \
+          --push .

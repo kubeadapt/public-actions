@@ -1,0 +1,70 @@
+name: AWS Golang Public Service — Build & Push to ECR Public
+
+on:
+  workflow_call:
+    inputs:
+      docker_file_path:
+        description: 'Docker file path'
+        required: false
+        type: string
+        default: './Dockerfile'
+      go_version:
+        description: 'Go version to use'
+        required: false
+        type: string
+        default: '1.26.x'
+      ecr_repository_name:
+        description: 'The AWS ECR Public repository name (e.g., kubeadapt/app/my-service)'
+        type: string
+        required: true
+      image_tag:
+        description: 'Custom image tag (optional, auto-generated if not provided)'
+        type: string
+        required: false
+      platforms:
+        description: 'Target platforms for multi-arch build'
+        type: string
+        required: false
+        default: 'linux/amd64,linux/arm64'
+      aws_role_to_assume:
+        description: 'The AWS role ARN to assume (from repo variable AWS_ROLE_TO_ASSUME)'
+        type: string
+        required: true
+    secrets:
+      PLATFORM_ASSISTANT_GH_APP_ID:
+        description: 'Github App ID'
+        required: true
+      PLATFORM_ASSISTANT_GH_APP_PRIVATE_KEY:
+        description: 'Github App private key'
+        required: true
+      AWS_REGION:
+        description: 'The AWS region'
+        required: true
+      AWS_ACCOUNT_ID:
+        description: 'The AWS account ID'
+        required: true
+
+permissions:
+  id-token: write
+  contents: read
+
+jobs:
+  build-and-push:
+    runs-on: ubuntu-latest
+    outputs:
+      image_tag: ${{ steps.build-and-push.outputs.image_tag }}
+    steps:
+      - name: Build and push Go application Docker image to ECR Public
+        id: build-and-push
+        uses: kubeadapt/public-actions/.github/actions/aws-golang-public-build-and-push@main
+        with:
+          docker_file_path: ${{ inputs.docker_file_path }}
+          go_version: ${{ inputs.go_version }}
+          ecr_repository_name: ${{ inputs.ecr_repository_name }}
+          image_tag: ${{ inputs.image_tag }}
+          platforms: ${{ inputs.platforms }}
+          PLATFORM_ASSISTANT_GH_APP_ID: ${{ secrets.PLATFORM_ASSISTANT_GH_APP_ID }}
+          PLATFORM_ASSISTANT_GH_APP_PRIVATE_KEY: ${{ secrets.PLATFORM_ASSISTANT_GH_APP_PRIVATE_KEY }}
+          AWS_REGION: ${{ secrets.AWS_REGION }}
+          AWS_ACCOUNT_ID: ${{ secrets.AWS_ACCOUNT_ID }}
+          AWS_ROLE_TO_ASSUME: ${{ inputs.aws_role_to_assume }}
