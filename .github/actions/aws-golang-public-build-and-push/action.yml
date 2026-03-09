@@ -61,14 +61,14 @@ runs:
         cache: false
 
     - name: Configure AWS Credentials (ECR Public - us-east-1)
-      if: github.ref == 'refs/heads/main'
+      if: github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/')
       uses: aws-actions/configure-aws-credentials@v4
       with:
         role-to-assume: arn:aws:iam::${{ inputs.AWS_ACCOUNT_ID }}:role/${{ inputs.AWS_ROLE_TO_ASSUME }}
         aws-region: us-east-1
 
     - name: Login to Amazon ECR Public
-      if: github.ref == 'refs/heads/main'
+      if: github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/')
       id: login-ecr-public
       uses: aws-actions/amazon-ecr-login@v2
       with:
@@ -94,13 +94,12 @@ runs:
       run: |
         if [[ -n "${{ inputs.image_tag }}" ]]; then
           tag="${{ inputs.image_tag }}"
-        else
-          if [[ "${{ github.ref }}" == "refs/heads/main" ]]; then
-            prefix="trunk"
-          elif [[ "${{ github.ref }}" == "refs/heads/develop" ]]; then
-            prefix="dev"
-          fi
-          tag="${prefix}-${GITHUB_SHA::7}"
+        elif [[ "${{ github.ref }}" == refs/tags/* ]]; then
+          tag="${GITHUB_REF#refs/tags/}"
+        elif [[ "${{ github.ref }}" == "refs/heads/main" ]]; then
+          tag="trunk-${GITHUB_SHA::7}"
+        elif [[ "${{ github.ref }}" == "refs/heads/develop" ]]; then
+          tag="dev-${GITHUB_SHA::7}"
         fi
         echo tag=$tag >> $GITHUB_OUTPUT
 
@@ -113,19 +112,43 @@ runs:
     - name: Build and push Docker image
       shell: bash
       run: |
-        if [[ "${{ github.ref }}" == "refs/heads/main" ]]; then
-          IMAGE="public.ecr.aws/${{ inputs.ecr_repository_name }}:${{ steps.image_tag.outputs.tag }}"
+        TAG="${{ steps.image_tag.outputs.tag }}"
+        SHA_SHORT="${GITHUB_SHA::7}"
+
+        if [[ "${{ github.ref }}" == refs/tags/* ]]; then
+          # Release tag: push version tag + trunk-sha tag to ECR Public
+          IMAGE_VERSION="public.ecr.aws/${{ inputs.ecr_repository_name }}:${TAG}"
+          IMAGE_SHA="public.ecr.aws/${{ inputs.ecr_repository_name }}:trunk-${SHA_SHORT}"
+          echo "Pushing release images: ${IMAGE_VERSION} + ${IMAGE_SHA}"
+          docker buildx build \
+            --file ${{ inputs.docker_file_path }} \
+            --platform ${{ inputs.platforms }} \
+            --tag "${IMAGE_VERSION}" \
+            --tag "${IMAGE_SHA}" \
+            --provenance=false \
+            --no-cache \
+            --push .
+        elif [[ "${{ github.ref }}" == "refs/heads/main" ]]; then
+          IMAGE="public.ecr.aws/${{ inputs.ecr_repository_name }}:${TAG}"
+          echo "Pushing image: ${IMAGE}"
+          docker buildx build \
+            --file ${{ inputs.docker_file_path }} \
+            --platform ${{ inputs.platforms }} \
+            --tag "${IMAGE}" \
+            --provenance=false \
+            --no-cache \
+            --push .
         elif [[ "${{ github.ref }}" == "refs/heads/develop" ]]; then
-          IMAGE="${{ inputs.AWS_ACCOUNT_ID }}.dkr.ecr.${{ inputs.AWS_REGION }}.amazonaws.com/${{ inputs.ecr_repository_name }}-dev:${{ steps.image_tag.outputs.tag }}"
+          IMAGE="${{ inputs.AWS_ACCOUNT_ID }}.dkr.ecr.${{ inputs.AWS_REGION }}.amazonaws.com/${{ inputs.ecr_repository_name }}-dev:${TAG}"
+          echo "Pushing image: ${IMAGE}"
+          docker buildx build \
+            --file ${{ inputs.docker_file_path }} \
+            --platform ${{ inputs.platforms }} \
+            --tag "${IMAGE}" \
+            --provenance=false \
+            --no-cache \
+            --push .
         else
-          echo "::error::Unsupported branch for image push"
+          echo "::error::Unsupported ref for image push: ${{ github.ref }}"
           exit 1
         fi
-        echo "Pushing image: ${IMAGE}"
-        docker buildx build \
-          --file ${{ inputs.docker_file_path }} \
-          --platform ${{ inputs.platforms }} \
-          --tag "${IMAGE}" \
-          --provenance=false \
-          --no-cache \
-          --push .
