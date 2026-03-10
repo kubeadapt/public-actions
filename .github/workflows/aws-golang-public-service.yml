@@ -14,7 +14,7 @@ on:
         type: string
         default: '1.26.x'
       ecr_repository_name:
-        description: 'The AWS ECR Public repository name (e.g., kubeadapt/app/my-service)'
+        description: 'ECR repository name without public alias (e.g., kubeadapt/app/my-service)'
         type: string
         required: true
       image_tag:
@@ -26,6 +26,10 @@ on:
         type: string
         required: false
         default: 'linux/amd64,linux/arm64'
+      ecr_public_alias:
+        description: 'ECR Public registry alias (prepended only for public ECR pushes)'
+        type: string
+        required: true
       aws_role_to_assume:
         description: 'The AWS role ARN to assume (from repo variable AWS_ROLE_TO_ASSUME)'
         type: string
@@ -63,6 +67,7 @@ jobs:
           ecr_repository_name: ${{ inputs.ecr_repository_name }}
           image_tag: ${{ inputs.image_tag }}
           platforms: ${{ inputs.platforms }}
+          ecr_public_alias: ${{ inputs.ecr_public_alias }}
           PLATFORM_ASSISTANT_GH_APP_ID: ${{ secrets.PLATFORM_ASSISTANT_GH_APP_ID }}
           PLATFORM_ASSISTANT_GH_APP_PRIVATE_KEY: ${{ secrets.PLATFORM_ASSISTANT_GH_APP_PRIVATE_KEY }}
           AWS_REGION: ${{ secrets.AWS_REGION }}

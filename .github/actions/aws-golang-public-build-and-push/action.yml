@@ -10,7 +10,7 @@ inputs:
     required: false
     default: '1.26.x'
   ecr_repository_name:
-    description: 'The AWS ECR Public repository name (e.g., kubeadapt/app/my-service)'
+    description: 'ECR repository name without public alias (e.g., kubeadapt/app/my-service)'
     required: true
   image_tag:
     description: 'Custom image tag (optional, auto-generated if not provided)'
@@ -19,6 +19,9 @@ inputs:
     description: 'Target platforms for multi-arch build (e.g., linux/amd64,linux/arm64)'
     required: false
     default: 'linux/amd64,linux/arm64'
+  ecr_public_alias:
+    description: 'ECR Public registry alias (prepended only for public ECR pushes)'
+    required: true
   PLATFORM_ASSISTANT_GH_APP_ID:
     description: 'Github App ID to be able to access private github repositories'
     required: true
@@ -117,8 +120,8 @@ runs:
 
         if [[ "${{ github.ref }}" == refs/tags/* ]]; then
           # Release tag: push version tag + trunk-sha tag to ECR Public
-          IMAGE_VERSION="public.ecr.aws/${{ inputs.ecr_repository_name }}:${TAG}"
-          IMAGE_SHA="public.ecr.aws/${{ inputs.ecr_repository_name }}:trunk-${SHA_SHORT}"
+          IMAGE_VERSION="public.ecr.aws/${{ inputs.ecr_public_alias }}/${{ inputs.ecr_repository_name }}:${TAG}"
+          IMAGE_SHA="public.ecr.aws/${{ inputs.ecr_public_alias }}/${{ inputs.ecr_repository_name }}:trunk-${SHA_SHORT}"
           echo "Pushing release images: ${IMAGE_VERSION} + ${IMAGE_SHA}"
           docker buildx build \
             --file ${{ inputs.docker_file_path }} \
@@ -129,7 +132,7 @@ runs:
             --no-cache \
             --push .
         elif [[ "${{ github.ref }}" == "refs/heads/main" ]]; then
-          IMAGE="public.ecr.aws/${{ inputs.ecr_repository_name }}:${TAG}"
+          IMAGE="public.ecr.aws/${{ inputs.ecr_public_alias }}/${{ inputs.ecr_repository_name }}:${TAG}"
           echo "Pushing image: ${IMAGE}"
           docker buildx build \
             --file ${{ inputs.docker_file_path }} \
