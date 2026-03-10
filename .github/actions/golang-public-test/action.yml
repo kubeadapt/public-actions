@@ -173,7 +173,7 @@ runs:
       uses: docker/build-push-action@v6
       with:
         context: .
-        tags: localhost/${{ inputs.docker_image_name }}:test
+        tags: localhost/${{ inputs.docker_image_name }}:e2e-test
         build-args: |
           VERSION=${{ steps.version.outputs.version }}
           COMMIT_HASH=${{ steps.version.outputs.commit }}
@@ -235,7 +235,6 @@ runs:
         fi
       env:
         E2E_SKIP_CLEANUP: ""
-        E2E_AGENT_IMAGE: localhost/${{ inputs.docker_image_name }}:test
 
     # ==========================================================
     # Phase 6: Benchmarks (skip for renovate bot)
