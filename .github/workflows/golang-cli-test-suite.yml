@@ -1,0 +1,38 @@
+name: Go CLI Test Suite
+
+on:
+  workflow_call:
+    inputs:
+      go_version:
+        description: 'Go version to use'
+        type: string
+        default: '1.26.x'
+      test_path:
+        description: 'Go test path for unit tests'
+        type: string
+        default: './...'
+      benchmark_path:
+        description: 'Path for benchmark tests'
+        type: string
+        default: './...'
+      golangci_lint_timeout:
+        description: 'golangci-lint timeout'
+        type: string
+        default: '5m'
+
+permissions:
+  contents: read
+  pull-requests: write
+  security-events: write
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: kubeadapt/public-actions/.github/actions/golang-cli-test@main
+        with:
+          go_version: ${{ inputs.go_version }}
+          test_path: ${{ inputs.test_path }}
+          github_token: ${{ github.token }}
+          golangci_lint_timeout: ${{ inputs.golangci_lint_timeout }}
+          benchmark_path: ${{ inputs.benchmark_path }}
