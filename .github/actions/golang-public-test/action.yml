@@ -259,7 +259,7 @@ runs:
       run: |
         git fetch origin "$BASE_REF"
         git checkout "origin/$BASE_REF"
-        go test -bench=. -benchmem -benchtime=5s ${{ inputs.benchmark_path }} | tee base-bench.txt
+        go test -run=^$ -bench=. -benchmem -benchtime=5s ${{ inputs.benchmark_path }} | tee base-bench.txt
         git checkout -
 
     - name: Compare benchmarks with benchstat
