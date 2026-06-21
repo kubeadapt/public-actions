@@ -277,11 +277,20 @@ jobs:
           E2E_KIND_NODE_IMAGE: ${{ matrix.kind_node_image }}
           E2E_SKIP_CLEANUP: ""
 
+      - name: Sanitize artifact suffix
+        if: always()
+        id: artifact
+        shell: bash
+        run: |
+          SUFFIX="${{ matrix.kind_node_image }}"
+          SUFFIX="${SUFFIX//kindest\/node:/}"
+          echo "suffix=${SUFFIX:+-$SUFFIX}" >> $GITHUB_OUTPUT
+
       - name: Upload E2E logs
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: e2e-logs${{ matrix.kind_node_image != '' && format('-{0}', matrix.kind_node_image) || '' }}
+          name: e2e-logs${{ steps.artifact.outputs.suffix }}
           path: tests/e2e/e2e-logs
           retention-days: 7
           if-no-files-found: ignore
