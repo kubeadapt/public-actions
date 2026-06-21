@@ -321,7 +321,7 @@ jobs:
 
       - name: Run benchmarks (current branch)
         shell: bash
-        run: go test -bench=. -benchmem -benchtime=5s ${{ inputs.benchmark_path }} | tee current-bench.txt
+        run: go test -bench=. -benchmem -count=6 ${{ inputs.benchmark_path }} | tee current-bench.txt
 
       - name: Run benchmarks (base branch) for comparison
         if: github.event_name == 'pull_request'
@@ -331,7 +331,7 @@ jobs:
         run: |
           git fetch origin "$BASE_REF"
           git checkout "origin/$BASE_REF"
-          go test -run=^$ -bench=. -benchmem -benchtime=5s ${{ inputs.benchmark_path }} | tee base-bench.txt
+          go test -run=^$ -bench=. -benchmem -count=6 ${{ inputs.benchmark_path }} | tee base-bench.txt
           git checkout -
 
       - name: Compare benchmarks with benchstat
@@ -340,11 +340,67 @@ jobs:
         shell: bash
         run: |
           if [ -f base-bench.txt ] && [ -f current-bench.txt ]; then
-            echo "## Benchmark Comparison" > benchstat-output.txt
-            echo "" >> benchstat-output.txt
-            echo '```' >> benchstat-output.txt
-            benchstat base-bench.txt current-bench.txt >> benchstat-output.txt || echo "No significant changes detected" >> benchstat-output.txt
-            echo '```' >> benchstat-output.txt
+            benchstat -format csv base-bench.txt current-bench.txt > benchstat-raw.csv 2>/dev/null || true
+            benchstat base-bench.txt current-bench.txt > benchstat-raw.txt 2>/dev/null || true
+
+            python3 - <<'PYEOF' > benchstat-output.txt
+          import csv, sys, os
+
+          csv_path = "benchstat-raw.csv"
+          txt_path = "benchstat-raw.txt"
+
+          print("## Benchmark Comparison")
+          print()
+
+          if not os.path.exists(csv_path) or os.path.getsize(csv_path) == 0:
+              if os.path.exists(txt_path):
+                  print("```")
+                  print(open(txt_path).read())
+                  print("```")
+              else:
+                  print("No benchmark data available.")
+              sys.exit(0)
+
+          rows = list(csv.DictReader(open(csv_path)))
+          if not rows:
+              print("No significant benchmark changes detected.")
+              sys.exit(0)
+
+          units = {}
+          for r in rows:
+              u = r.get("Unit", "")
+              if u not in units:
+                  units[u] = []
+              units[u].append(r)
+
+          for unit, group in units.items():
+              label = {"sec/op": "Time", "B/op": "Memory", "allocs/op": "Allocations"}.get(unit, unit)
+              print(f"### {label} (`{unit}`)")
+              print()
+              print("| Benchmark | Base | Current | Delta |")
+              print("|-----------|-----:|--------:|------:|")
+              for r in group:
+                  name = r.get("Benchmark", "?").replace("pkg:", "").strip()
+                  old = r.get("Old", "-")
+                  new = r.get("New", "-")
+                  delta = r.get("Delta", "~")
+                  if delta and delta != "~":
+                      print(f"| `{name}` | {old} | {new} | {delta} |")
+                  else:
+                      print(f"| `{name}` | {old} | {new} | — |")
+              print()
+
+          print("---")
+          print()
+          print("<details>")
+          print("<summary>Raw benchstat output</summary>")
+          print()
+          print("```")
+          if os.path.exists(txt_path):
+              print(open(txt_path).read().strip())
+          print("```")
+          print("</details>")
+          PYEOF
 
             echo "HAS_COMPARISON=true" >> $GITHUB_OUTPUT
           else
