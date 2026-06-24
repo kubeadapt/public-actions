@@ -221,7 +221,7 @@ jobs:
           exit-code: '0'
 
       - name: Upload Docker image artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: docker-image
           path: /tmp/${{ inputs.docker_image_name }}.tar
@@ -249,7 +249,7 @@ jobs:
           cache: true
 
       - name: Download Docker image artifact
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           name: docker-image
           path: /tmp
@@ -288,7 +288,7 @@ jobs:
 
       - name: Upload E2E logs
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: e2e-logs${{ steps.artifact.outputs.suffix }}
           path: tests/e2e/e2e-logs
