@@ -30,7 +30,7 @@ runs:
         fetch-depth: 0
 
     - name: Setup Go ${{ inputs.go_version }}
-      uses: actions/setup-go@v6
+      uses: actions/setup-go@v7
       with:
         go-version: ${{ inputs.go_version }}
         cache: true
