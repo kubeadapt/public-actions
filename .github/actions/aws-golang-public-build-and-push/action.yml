@@ -129,8 +129,14 @@ runs:
     - name: Set up QEMU for Multi-Arch Build
       uses: docker/setup-qemu-action@v4
 
-    - name: Set up Docker Buildx
-      uses: docker/setup-buildx-action@v4
+    # Layers persist on a Blacksmith sticky disk between builds, which matters
+    # most for the QEMU-emulated arm64 half. Off Blacksmith it falls back to a
+    # local builder.
+    - name: Set up Blacksmith Docker builder
+      uses: useblacksmith/setup-docker-builder@v2
+      with:
+        cache-key: ${{ github.repository }}/${{ inputs.docker_file_path }}
+        platforms: ${{ inputs.platforms }}
 
     - name: Build and push Docker image
       shell: bash
@@ -152,7 +158,7 @@ runs:
             --build-arg COMMIT_HASH=${SHA_SHORT} \
             --build-arg BUILD_TIME=$(date -u +%Y-%m-%dT%H:%M:%SZ) \
             --provenance=false \
-            --no-cache \
+            --pull \
             --push .
         elif [[ "${{ github.ref }}" == "refs/heads/main" ]]; then
           IMAGE="public.ecr.aws/${{ inputs.ecr_public_alias }}/${{ inputs.ecr_repository_name }}:${TAG}"
@@ -165,7 +171,7 @@ runs:
             --build-arg COMMIT_HASH=${SHA_SHORT} \
             --build-arg BUILD_TIME=$(date -u +%Y-%m-%dT%H:%M:%SZ) \
             --provenance=false \
-            --no-cache \
+            --pull \
             --push .
         elif [[ "${{ github.ref }}" == "refs/heads/develop" ]]; then
           IMAGE="${{ inputs.AWS_ACCOUNT_ID }}.dkr.ecr.${{ inputs.AWS_REGION }}.amazonaws.com/${{ inputs.ecr_repository_name }}-dev:${TAG}"
@@ -178,7 +184,7 @@ runs:
             --build-arg COMMIT_HASH=${SHA_SHORT} \
             --build-arg BUILD_TIME=$(date -u +%Y-%m-%dT%H:%M:%SZ) \
             --provenance=false \
-            --no-cache \
+            --pull \
             --push .
         else
           echo "::error::Unsupported ref for image push: ${{ github.ref }}"
