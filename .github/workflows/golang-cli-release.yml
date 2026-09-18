@@ -21,7 +21,11 @@ jobs:
   release:
     runs-on: ubuntu-latest
     steps:
-      - uses: kubeadapt/public-actions/.github/actions/golang-cli-release@main
+      # Pinned to a public-actions commit instead of @main. A reusable workflow
+      # called from another repository cannot use a relative ./ path for this
+      # composite, so it is referenced by SHA. Bump the SHA after every change
+      # to the composite action (including its own action pins).
+      - uses: kubeadapt/public-actions/.github/actions/golang-cli-release@5d44aeae166b6ebf139190ace6679d676d4f2985
         with:
           go_version: ${{ inputs.go_version }}
           PLATFORM_ASSISTANT_GH_APP_ID: ${{ secrets.PLATFORM_ASSISTANT_GH_APP_ID }}

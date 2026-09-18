@@ -2,6 +2,15 @@
   "$schema": "https://docs.renovatebot.com/renovate-schema.json",
   "extends": [
     "config:recommended",
-    ":dependencyDashboard"
+    ":dependencyDashboard",
+    "helpers:pinGitHubActionDigests"
+  ],
+  "packageRules": [
+    {
+      "description": "Composite actions from this repository are pinned to one of its own commits and bumped by hand when they change",
+      "matchManagers": ["github-actions"],
+      "matchDepNames": ["kubeadapt/public-actions"],
+      "enabled": false
+    }
   ]
 }

@@ -25,12 +25,12 @@ runs:
   using: "composite"
   steps:
     - name: Checkout code
-      uses: actions/checkout@v7
+      uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
       with:
         fetch-depth: 0
 
     - name: Setup Go ${{ inputs.go_version }}
-      uses: actions/setup-go@v7
+      uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7
       with:
         go-version: ${{ inputs.go_version }}
         cache: true
@@ -78,7 +78,7 @@ runs:
 
     - name: Comment PR with coverage
       if: github.event_name == 'pull_request' && steps.coverage.outputs.HAS_COVERAGE == 'true'
-      uses: actions/github-script@v9
+      uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9
       with:
         github-token: ${{ inputs.github_token }}
         script: |
@@ -115,7 +115,7 @@ runs:
           }
 
     - name: Run linter with reviewdog
-      uses: reviewdog/action-golangci-lint@v2
+      uses: reviewdog/action-golangci-lint@c76cceaaab89abe74e649d2e34c6c9adc26662d2 # v2
       with:
         github_token: ${{ inputs.github_token }}
         golangci_lint_flags: "--timeout=${{ inputs.golangci_lint_timeout }}"
@@ -126,13 +126,13 @@ runs:
         cache: false
 
     - name: Run govulncheck
-      uses: golang/govulncheck-action@v1
+      uses: golang/govulncheck-action@032d45514ae346b1db93c04b0c90b841c370344f # v1
       with:
         go-version-input: ${{ inputs.go_version }}
         repo-checkout: false
 
     - name: Run TruffleHog secret scanning
-      uses: trufflesecurity/trufflehog@main
+      uses: trufflesecurity/trufflehog@f714bf454f350590f4a24c3ddb1aef02c35bf5b6 # v3.97.5
       with:
         path: ./
         base: origin/${{ github.event.repository.default_branch }}
@@ -140,7 +140,7 @@ runs:
         extra_args: --debug --only-verified
 
     - name: Run Trivy filesystem vulnerability scanner
-      uses: aquasecurity/trivy-action@0.35.0
+      uses: aquasecurity/trivy-action@57a97c7e7821a5776cebc9bb87c984fa69cba8f1 # 0.35.0
       with:
         scan-type: 'fs'
         scan-ref: '.'
@@ -192,7 +192,7 @@ runs:
 
     - name: Comment PR with benchmark results
       if: github.event_name == 'pull_request' && steps.benchstat.outputs.HAS_COMPARISON == 'true'
-      uses: actions/github-script@v9
+      uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9
       with:
         github-token: ${{ inputs.github_token }}
         script: |
