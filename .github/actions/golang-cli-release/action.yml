@@ -17,26 +17,26 @@ runs:
   steps:
     - name: Generate GitHub App Token
       id: generate_token
-      uses: actions/create-github-app-token@v3
+      uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1 # v3
       with:
         app-id: ${{ inputs.PLATFORM_ASSISTANT_GH_APP_ID }}
         private-key: ${{ inputs.PLATFORM_ASSISTANT_GH_APP_PRIVATE_KEY }}
         owner: ${{ github.repository_owner }}
 
     - name: Checkout source code
-      uses: actions/checkout@v7
+      uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
       with:
         fetch-depth: 0
         token: ${{ steps.generate_token.outputs.token }}
 
     - name: Setup Go ${{ inputs.go_version }}
-      uses: actions/setup-go@v7
+      uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7
       with:
         go-version: ${{ inputs.go_version }}
         cache: true
 
     - name: Run GoReleaser
-      uses: goreleaser/goreleaser-action@v7
+      uses: goreleaser/goreleaser-action@f06c13b6b1a9625abc9e6e439d9c05a8f2190e94 # v7
       with:
         distribution: goreleaser
         version: "~> v2"
