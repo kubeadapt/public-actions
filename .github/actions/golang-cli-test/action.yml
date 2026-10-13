@@ -115,7 +115,7 @@ runs:
           }
 
     - name: Run linter with reviewdog
-      uses: reviewdog/action-golangci-lint@c76cceaaab89abe74e649d2e34c6c9adc26662d2 # v2
+      uses: reviewdog/action-golangci-lint@284129a3ac23bc5d8ac1522e0b6511df74a8836d # v2
       with:
         github_token: ${{ inputs.github_token }}
         golangci_lint_flags: "--timeout=${{ inputs.golangci_lint_timeout }}"
@@ -132,7 +132,7 @@ runs:
         repo-checkout: false
 
     - name: Run TruffleHog secret scanning
-      uses: trufflesecurity/trufflehog@f714bf454f350590f4a24c3ddb1aef02c35bf5b6 # v3.97.5
+      uses: trufflesecurity/trufflehog@e76dff8a7e57d6df0c60ad8cbf5d5cba505a8fc9 # v3.99.2
       with:
         path: ./
         base: origin/${{ github.event.repository.default_branch }}
