@@ -1,0 +1,118 @@
+# External uptime probe. Runs outside the cluster so a full cluster or
+# monitoring outage still raises an alert. Lives in a public repo because
+# public repos have no Actions minute cap; it only probes public URLs.
+name: uptime
+
+on:
+  schedule:
+    - cron: "*/5 * * * *"
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: "Print payloads, send nothing"
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+concurrency:
+  group: uptime
+  cancel-in-progress: false
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Probe endpoints and report
+        env:
+          INCIDENT_IO_URL: ${{ secrets.UPTIME_INCIDENT_IO_URL }}
+          INCIDENT_IO_TOKEN: ${{ secrets.UPTIME_INCIDENT_IO_TOKEN }}
+          SLACK_WEBHOOK_URL: ${{ secrets.UPTIME_SLACK_WEBHOOK_URL }}
+          DRY_RUN: ${{ inputs.dry_run || 'false' }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          python3 - <<'EOF'
+          import json, os, time, urllib.request, urllib.error, datetime
+
+          # name, url, expected status. Health paths verified 2026-11-01.
+          TARGETS = [
+              ("app",        "https://app.kubeadapt.io/sign-in",         200),
+              ("api",        "https://api.kubeadapt.io/readyz",          200),
+              ("ingest",     "https://ingest.kubeadapt.io/health",       200),
+              ("agent",      "https://agent.kubeadapt.io/health",        200),
+              ("mcp",        "https://mcp.kubeadapt.io/healthz",         200),
+              ("public-api", "https://public-api.kubeadapt.io/health",   200),
+              ("prices",     "https://prices.cloudadapt.io/",            200),
+              ("landing",    "https://kubeadapt.io/",                    200),
+              ("support",    "https://support.cloudadapt.io/",           200),
+          ]
+
+          def probe(url, want):
+              # Three attempts so a single dropped packet is not an outage.
+              last = ""
+              for attempt in range(3):
+                  try:
+                      req = urllib.request.Request(url, headers={"User-Agent": "kubeadapt-uptime/1"})
+                      with urllib.request.urlopen(req, timeout=15) as r:
+                          if r.status == want:
+                              return True, f"{r.status}"
+                          last = f"status {r.status}"
+                  except urllib.error.HTTPError as e:
+                      if e.code == want:
+                          return True, f"{e.code}"
+                      last = f"status {e.code}"
+                  except Exception as e:  # timeouts, DNS, TLS
+                      last = type(e).__name__ + ": " + str(e)[:200]
+                  time.sleep(5)
+              return False, last
+
+          now = datetime.datetime.now(datetime.timezone.utc).isoformat()
+          results = []
+          for name, url, want in TARGETS:
+              ok, detail = probe(url, want)
+              results.append((name, url, ok, detail))
+              print(f"{'OK  ' if ok else 'FAIL'} {name:11} {url} {detail}")
+
+          failing = [r for r in results if not r[2]]
+          dry = os.environ.get("DRY_RUN") == "true"
+
+          # Alertmanager webhook shape, which the incident.io alert source
+          # already accepts from SigNoz. Resolved entries close earlier alerts.
+          alerts = []
+          for name, url, ok, detail in results:
+              alerts.append({
+                  "status": "resolved" if ok else "firing",
+                  "labels": {"alertname": "Uptime - Endpoint down", "endpoint": name,
+                             "severity": "critical", "env": "production", "source": "github-uptime"},
+                  "annotations": {"summary": f"{name} is not answering from outside the cluster",
+                                  "description": f"{url}: {detail}",
+                                  "runbook": "Check the endpoint from a browser, then Argo and the node status."},
+                  "startsAt": now, "endsAt": now if ok else "0001-01-01T00:00:00Z",
+                  "generatorURL": os.environ["RUN_URL"],
+                  "fingerprint": "uptime-" + name,
+              })
+          payload = {"version": "4", "status": "firing" if failing else "resolved",
+                     "receiver": "github-uptime", "groupKey": "github-uptime",
+                     "groupLabels": {"alertname": "Uptime - Endpoint down"},
+                     "commonLabels": {"source": "github-uptime"}, "commonAnnotations": {},
+                     "externalURL": os.environ["RUN_URL"], "truncatedAlerts": 0, "alerts": alerts}
+
+          def post(url, body, headers):
+              req = urllib.request.Request(url, data=json.dumps(body).encode(), method="POST",
+                                           headers={"Content-Type": "application/json", **headers})
+              with urllib.request.urlopen(req, timeout=15) as r:
+                  return r.status
+
+          if dry:
+              print(json.dumps(payload, indent=2))
+          else:
+              if os.environ.get("INCIDENT_IO_URL"):
+                  print("incident.io:", post(os.environ["INCIDENT_IO_URL"], payload,
+                        {"Authorization": "Bearer " + os.environ["INCIDENT_IO_TOKEN"]}))
+              if failing and os.environ.get("SLACK_WEBHOOK_URL"):
+                  lines = "\n".join(f"• *{n}* {u}: {d}" for n, u, _, d in failing)
+                  print("slack:", post(os.environ["SLACK_WEBHOOK_URL"],
+                        {"text": f":rotating_light: Uptime: {len(failing)} endpoint(s) down from outside the cluster\n{lines}\n<{os.environ['RUN_URL']}|run>"}, {}))
+          EOF
