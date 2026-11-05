@@ -71,7 +71,7 @@ runs:
 
     - name: Generate Github App Token for Private Repositories
       id: generate_token
-      uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1 # v3
+      uses: actions/create-github-app-token@64ab729a6294000f5aa4a4bc0b73d1f32bc45510 # v3
       with:
         app-id: ${{ inputs.PLATFORM_ASSISTANT_GH_APP_ID }}
         private-key: ${{ inputs.PLATFORM_ASSISTANT_GH_APP_PRIVATE_KEY }}
@@ -133,7 +133,7 @@ runs:
     # most for the QEMU-emulated arm64 half. Off Blacksmith it falls back to a
     # local builder.
     - name: Set up Blacksmith Docker builder
-      uses: useblacksmith/setup-docker-builder@19215110ab936351210feebdfa5b440b4493e184 # v2
+      uses: useblacksmith/setup-docker-builder@06dd9c83a5d541274d2e3ac67625560979275267 # v2
       with:
         cache-key: ${{ github.repository }}/${{ inputs.docker_file_path }}
         platforms: ${{ inputs.platforms }}
