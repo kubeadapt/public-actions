@@ -45,6 +45,9 @@ outputs:
   image_uri:
     description: 'Full ECR Public image URI for the published tag (release tag pushes only)'
     value: public.ecr.aws/${{ inputs.ecr_public_alias }}/${{ inputs.ecr_repository_name }}:${{ steps.image_tag.outputs.tag }}
+  image_digest:
+    description: 'Digest of the pushed image (the manifest list for multi-arch builds), as reported by the build that pushed it'
+    value: ${{ steps.push.outputs.digest }}
 
 runs:
   using: "composite"
@@ -139,6 +142,7 @@ runs:
         platforms: ${{ inputs.platforms }}
 
     - name: Build and push Docker image
+      id: push
       shell: bash
       run: |
         TAG="${{ steps.image_tag.outputs.tag }}"
@@ -158,6 +162,7 @@ runs:
             --build-arg COMMIT_HASH=${SHA_SHORT} \
             --build-arg BUILD_TIME=$(date -u +%Y-%m-%dT%H:%M:%SZ) \
             --provenance=false \
+            --metadata-file "$RUNNER_TEMP/build-metadata.json" \
             --pull \
             --push .
         elif [[ "${{ github.ref }}" == "refs/heads/main" ]]; then
@@ -171,6 +176,7 @@ runs:
             --build-arg COMMIT_HASH=${SHA_SHORT} \
             --build-arg BUILD_TIME=$(date -u +%Y-%m-%dT%H:%M:%SZ) \
             --provenance=false \
+            --metadata-file "$RUNNER_TEMP/build-metadata.json" \
             --pull \
             --push .
         elif [[ "${{ github.ref }}" == "refs/heads/develop" ]]; then
@@ -184,9 +190,14 @@ runs:
             --build-arg COMMIT_HASH=${SHA_SHORT} \
             --build-arg BUILD_TIME=$(date -u +%Y-%m-%dT%H:%M:%SZ) \
             --provenance=false \
+            --metadata-file "$RUNNER_TEMP/build-metadata.json" \
             --pull \
             --push .
         else
           echo "::error::Unsupported ref for image push: ${{ github.ref }}"
           exit 1
         fi
+
+        digest=$(jq -r '."containerimage.digest" // empty' "$RUNNER_TEMP/build-metadata.json")
+        [[ "$digest" == sha256:* ]] || { echo "::error::The build reported no image digest"; exit 1; }
+        echo "digest=$digest" >> "$GITHUB_OUTPUT"
