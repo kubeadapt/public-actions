@@ -129,14 +129,10 @@ runs:
     - name: Set up QEMU for Multi-Arch Build
       uses: docker/setup-qemu-action@99012661954931238ded8c8b007157a8430204e1 # v4
 
-    # Layers persist on a Blacksmith sticky disk between builds, which matters
-    # most for the QEMU-emulated arm64 half. Off Blacksmith it falls back to a
-    # local builder.
-    - name: Set up Blacksmith Docker builder
-      uses: useblacksmith/setup-docker-builder@19215110ab936351210feebdfa5b440b4493e184 # v2
-      with:
-        cache-key: ${{ github.repository }}/${{ inputs.docker_file_path }}
-        platforms: ${{ inputs.platforms }}
+    # Multi-platform push needs a docker-container builder. No layer cache:
+    # every build starts clean.
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4
 
     - name: Build and push Docker image
       shell: bash
