@@ -1,5 +1,5 @@
 name: 'Build and Push Go Application to ECR'
-description: 'Build Go application Docker image with multi-arch support and push to ECR Public (main) or ECR Private (develop)'
+description: 'Build Go application Docker image with multi-arch support and push to ECR Public (main) or ECR Private (dev)'
 inputs:
   docker_file_path:
     description: 'Docker file path'
@@ -98,14 +98,14 @@ runs:
         registry-type: public
 
     - name: Configure AWS Credentials (ECR Private - ${{ inputs.AWS_REGION }})
-      if: github.ref == 'refs/heads/develop'
+      if: github.ref == 'refs/heads/dev'
       uses: aws-actions/configure-aws-credentials@e1253824e5c10ff9df46874f81ed3ec929e19cfd # v6
       with:
         role-to-assume: arn:aws:iam::${{ inputs.AWS_ACCOUNT_ID }}:role/${{ inputs.AWS_ROLE_TO_ASSUME }}
         aws-region: ${{ inputs.AWS_REGION }}
 
     - name: Login to Amazon ECR Private
-      if: github.ref == 'refs/heads/develop'
+      if: github.ref == 'refs/heads/dev'
       id: login-ecr-private
       uses: aws-actions/amazon-ecr-login@03f1aad4c6c7ffd436567f42f9384779290529bd # v2
       with:
@@ -121,7 +121,7 @@ runs:
           tag="${GITHUB_REF#refs/tags/}"
         elif [[ "${{ github.ref }}" == "refs/heads/main" ]]; then
           tag="trunk-${GITHUB_SHA::7}"
-        elif [[ "${{ github.ref }}" == "refs/heads/develop" ]]; then
+        elif [[ "${{ github.ref }}" == "refs/heads/dev" ]]; then
           tag="dev-${GITHUB_SHA::7}"
         fi
         echo tag=$tag >> $GITHUB_OUTPUT
@@ -173,7 +173,7 @@ runs:
             --provenance=false \
             --pull \
             --push .
-        elif [[ "${{ github.ref }}" == "refs/heads/develop" ]]; then
+        elif [[ "${{ github.ref }}" == "refs/heads/dev" ]]; then
           IMAGE="${{ inputs.AWS_ACCOUNT_ID }}.dkr.ecr.${{ inputs.AWS_REGION }}.amazonaws.com/${{ inputs.ecr_repository_name }}-dev:${TAG}"
           echo "Pushing image: ${IMAGE}"
           docker buildx build \
