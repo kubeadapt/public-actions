@@ -71,14 +71,14 @@ runs:
 
     - name: Generate Github App Token for Private Repositories
       id: generate_token
-      uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1 # v3
+      uses: actions/create-github-app-token@f418cff399f7aef4c2f0ad47e25ca7a6abbdd6fc # v3
       with:
         app-id: ${{ inputs.PLATFORM_ASSISTANT_GH_APP_ID }}
         private-key: ${{ inputs.PLATFORM_ASSISTANT_GH_APP_PRIVATE_KEY }}
         owner: ${{ github.repository_owner }}
 
     - name: Setup Go ${{ inputs.go_version }}
-      uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7
+      uses: actions/setup-go@d8cbb8045d7f43706b9177cceb36c1f91a6644d5 # v7
       with:
         go-version: ${{ inputs.go_version }}
         cache: false
@@ -93,7 +93,7 @@ runs:
     - name: Login to Amazon ECR Public
       if: github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/')
       id: login-ecr-public
-      uses: aws-actions/amazon-ecr-login@03f1aad4c6c7ffd436567f42f9384779290529bd # v2
+      uses: aws-actions/amazon-ecr-login@7290e214a610b32bc0eef81748948b6d466a8783 # v2
       with:
         registry-type: public
 
@@ -107,7 +107,7 @@ runs:
     - name: Login to Amazon ECR Private
       if: github.ref == 'refs/heads/dev'
       id: login-ecr-private
-      uses: aws-actions/amazon-ecr-login@03f1aad4c6c7ffd436567f42f9384779290529bd # v2
+      uses: aws-actions/amazon-ecr-login@7290e214a610b32bc0eef81748948b6d466a8783 # v2
       with:
         registry-type: private
 
@@ -133,7 +133,7 @@ runs:
     # most for the QEMU-emulated arm64 half. Off Blacksmith it falls back to a
     # local builder.
     - name: Set up Blacksmith Docker builder
-      uses: useblacksmith/setup-docker-builder@19215110ab936351210feebdfa5b440b4493e184 # v2
+      uses: useblacksmith/setup-docker-builder@9657a6e02ca6445e6d6ce5ffaf370f4828dea50d # v2
       with:
         cache-key: ${{ github.repository }}/${{ inputs.docker_file_path }}
         platforms: ${{ inputs.platforms }}
