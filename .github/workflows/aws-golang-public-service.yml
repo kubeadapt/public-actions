@@ -48,7 +48,7 @@ on:
         description: 'Runner label for both jobs. Defaults to a Blacksmith amd64 runner: every caller of this workflow is a private repository, where GitHub-hosted minutes are billed.'
         type: string
         required: false
-        default: 'blacksmith-4vcpu-ubuntu-2404'
+        default: 'blacksmith-2vcpu-ubuntu-2404'
     secrets:
       PLATFORM_ASSISTANT_GH_APP_ID:
         description: 'Github App ID'
